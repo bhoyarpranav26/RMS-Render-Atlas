@@ -33,7 +33,15 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-const API_URL = (typeof (import.meta) !== 'undefined' ? (import.meta as any).env?.VITE_API_URL : undefined) || ''
+const RAW_API = (typeof (import.meta) !== 'undefined' ? (import.meta as any).env?.VITE_API_URL : undefined) || ''
+const API_BASE = RAW_API.replace(/\/$/, '') // remove trailing slash
+
+function authEndpoint(path: string) {
+  // path should start with '/...'
+  if (!API_BASE) return `/api/auth${path}`
+  if (API_BASE.endsWith('/api')) return `${API_BASE}/auth${path}`
+  return `${API_BASE}/api/auth${path}`
+}
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -75,7 +83,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // API helpers
   const loginWithCredentials = async (email: string, password: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/login`, {
+      const res = await fetch(authEndpoint('/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -93,14 +101,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const requestOtpForSignup = async (payload: { name: string; email: string; phone: string; password: string }) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/request-otp`, {
+      const res = await fetch(authEndpoint('/request-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
       const data = await res.json()
       if (!res.ok) return { ok: false, error: data.error || 'Failed to request OTP' }
-      return { ok: true }
+      // In dev mode backend may return the OTP for testing: { ok:true, message:..., otp }
+      return { ok: true, otp: data.otp, message: data.message }
     } catch (err: any) {
       console.error(err)
       return { ok: false, error: 'Network error' }
@@ -109,7 +118,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const verifyOtpAndCreateAccount = async (email: string, otp: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/verify-otp`, {
+      const res = await fetch(authEndpoint('/verify-otp'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp })

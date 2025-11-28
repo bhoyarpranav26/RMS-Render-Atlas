@@ -39,10 +39,25 @@ router.post('/request-otp', async (req, res) => {
       { upsert: true, new: true }
     )
 
-    // Send OTP via email
-    await sendOtpEmail(email, otp)
+    // Send OTP via email. sendOtpEmail returns true when sent, false when SMTP not configured.
+    try {
+      const sent = await sendOtpEmail(email, otp)
+      if (!sent) {
+        // If SMTP isn't configured, be explicit. In production we fail; in dev we return the OTP for testing.
+        if (process.env.NODE_ENV === 'production' || process.env.EMAIL_REQUIRED === 'true') {
+          console.error('SMTP not configured; cannot send OTP in production')
+          return res.status(500).json({ error: 'Failed to send OTP email. Please contact support.' })
+        }
 
-    return res.json({ ok: true, message: 'OTP sent to email. Expires in 10 minutes.' })
+        // Development/testing mode: include OTP in response so the developer can continue testing.
+        return res.json({ ok: true, message: 'OTP (mocked) — SMTP not configured. Expires in 10 minutes.', otp })
+      }
+
+      return res.json({ ok: true, message: 'OTP sent to email. Expires in 10 minutes.' })
+    } catch (err) {
+      console.error('Error sending OTP email:', err && err.message ? err.message : err)
+      return res.status(500).json({ error: 'Failed to send OTP email' })
+    }
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Internal server error' })

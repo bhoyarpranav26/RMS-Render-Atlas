@@ -5,7 +5,21 @@ const mongoose = require('mongoose')
 const authRoutes = require('./routes/auth')
 
 const app = express()
-app.use(cors())
+
+// Configure CORS: prefer explicit FRONTEND_URL in env, otherwise allow all (useful in dev)
+const FRONTEND_URL = process.env.FRONTEND_URL || ''
+if (FRONTEND_URL) {
+  console.log('Configuring CORS to allow frontend origin:', FRONTEND_URL)
+  app.use(cors({
+    origin: FRONTEND_URL,
+    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+    credentials: true
+  }))
+} else {
+  console.warn('FRONTEND_URL not set — enabling permissive CORS. Set FRONTEND_URL in production.')
+  app.use(cors())
+}
+
 app.use(express.json())
 
 const PORT = process.env.PORT || 5000
@@ -21,7 +35,12 @@ async function start() {
       console.log('Connected to MongoDB')
     }
 
-    app.get('/health', (req, res) => res.json({ ok: true }))
+  // Basic health and informational routes
+  app.get('/', (req, res) => res.send('Backend is running successfully 🚀'))
+  app.get('/health', (req, res) => res.json({ ok: true }))
+
+  // Simple test endpoint to verify API responses
+  app.get('/api/test', (req, res) => res.json({ message: 'API is OK' }))
     app.use('/api/auth', authRoutes)
 
     app.listen(PORT, () => console.log(`Server listening on port ${PORT}`))

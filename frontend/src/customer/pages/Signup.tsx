@@ -22,11 +22,6 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({ email, onVerify, onRe
   const [canResend, setCanResend] = useState(false)
   const [otpError, setOtpError] = useState('')
   const [isExpired, setIsExpired] = useState(false)
-  const [correctOTP] = useState(() => {
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
-    console.log('Generated OTP for testing:', otp) // For testing purposes only
-    return otp
-  }) // Mock correct OTP - in production, this would come from backend
 
   React.useEffect(() => {
     if (resendTimer > 0) {
@@ -49,19 +44,20 @@ const OTPVerification: React.FC<OTPVerificationProps> = ({ email, onVerify, onRe
       return
     }
 
+    if (otp.length !== 6) {
+      setOtpError('Please enter a complete 6-digit OTP')
+      return
+    }
     setIsLoading(true)
     setOtpError('')
-    
-    // Simulate backend validation - in real app, this would be an API call
-    setTimeout(() => {
-      // Mock validation: only accept the correct OTP
-      if (otp === correctOTP) {
-        onVerify(otp)
-      } else {
-        setOtpError('Invalid or expired OTP')
-      }
+    try {
+      // Delegate verification to parent which will call backend
+      await onVerify(otp)
+    } catch (err: any) {
+      setOtpError(err?.message || 'OTP verification failed')
+    } finally {
       setIsLoading(false)
-    }, 1000)
+    }
   }
 
   const handleResend = () => {
@@ -327,6 +323,11 @@ const Signup: React.FC<SignupProps> = ({ onClose, onSwitchToLogin, onSignup }) =
     const resp = await auth.requestOtpForSignup({ name, email, phone, password })
     setIsLoading(false)
     if (resp.ok) {
+      // If backend returned OTP (mock mode), show it so dev can test quickly
+      if ((resp as any).otp) {
+        // eslint-disable-next-line no-alert
+        alert(`Mock OTP (dev mode): ${(resp as any).otp}`)
+      }
       setShowOTPVerification(true)
     } else {
       alert(resp.error || 'Failed to send OTP')
@@ -346,16 +347,26 @@ const Signup: React.FC<SignupProps> = ({ onClose, onSwitchToLogin, onSignup }) =
         password: formData.password
       })
       setShowOTPVerification(false)
-    } else {
-      alert(resp.error || 'OTP verification failed')
+      return
     }
+
+    // Throw so child OTP component can display the error
+    throw new Error(resp.error || 'OTP verification failed')
   }
 
   const handleOTPResend = async () => {
     setIsLoading(true)
     const resp = await auth.requestOtpForSignup({ name: formData.name, email: formData.email, phone: formData.phone, password: formData.password })
     setIsLoading(false)
-    if (!resp.ok) alert(resp.error || 'Failed to resend OTP')
+    if (!resp.ok) {
+      alert(resp.error || 'Failed to resend OTP')
+      return
+    }
+
+    if ((resp as any).otp) {
+      // eslint-disable-next-line no-alert
+      alert(`Mock OTP (dev mode): ${(resp as any).otp}`)
+    }
   }
 
   const handleOTPBack = () => {

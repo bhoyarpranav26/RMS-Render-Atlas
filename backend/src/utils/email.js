@@ -21,22 +21,34 @@ const getTransport = () => {
   })
 }
 
+/**
+ * Send OTP email. Returns true if sent, false if not sent (missing config).
+ * Throws on transport errors.
+ */
 async function sendOtpEmail(to, otp) {
   const transporter = getTransport()
   if (!transporter) {
-    console.log(`Mock send OTP ${otp} to ${to}`)
-    return
+    // In non-production allow a mock send so dev/testing can continue.
+    console.log(`Mock send OTP ${otp} to ${to} (SMTP not configured)`)
+    return false
   }
 
-  const info = await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject: 'Your RestoM verification code',
-    text: `Your verification code is ${otp}. It will expire in 10 minutes.`,
-    html: `<p>Your verification code is <strong>${otp}</strong>. It will expire in 10 minutes.</p>`
-  })
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to,
+      subject: 'Your RestoM verification code',
+      text: `Your verification code is ${otp}. It will expire in 10 minutes.`,
+      html: `<p>Your verification code is <strong>${otp}</strong>. It will expire in 10 minutes.</p>`
+    })
 
-  console.log('OTP email sent:', info.messageId)
+    console.log('OTP email sent:', info.messageId)
+    return true
+  } catch (err) {
+    console.error('Failed to send OTP email:', err && err.message ? err.message : err)
+    // bubble up the error to allow callers to decide how to handle
+    throw err
+  }
 }
 
 module.exports = { sendOtpEmail }
