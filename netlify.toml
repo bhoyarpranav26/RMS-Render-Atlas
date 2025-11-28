@@ -1,0 +1,28 @@
+# Netlify configuration for this repository
+# Build from the frontend folder and publish the Vite output (dist)
+
+[build]
+  # Build commands will be run from the repo root by Netlify; setting base to the frontend folder
+  base = "frontend"
+  # The directory relative to the base directory that contains the built assets
+  publish = "dist"
+  # Run the frontend build using the frontend package.json scripts
+  command = "npm run build --prefix frontend"
+
+# Enable Claude Haiku 4.5 for all contexts by setting environment variables
+[context.production.environment]
+  ENABLE_CLAUDE_HAIKU = "true"
+  CLAUDE_MODEL = "claude-haiku-4.5"
+
+[context.deploy-preview.environment]
+  ENABLE_CLAUDE_HAIKU = "true"
+  CLAUDE_MODEL = "claude-haiku-4.5"
+
+[context.branch-deploy.environment]
+  ENABLE_CLAUDE_HAIKU = "true"
+  CLAUDE_MODEL = "claude-haiku-4.5"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
