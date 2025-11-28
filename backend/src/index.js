@@ -22,6 +22,16 @@ if (FRONTEND_URL) {
 
 app.use(express.json())
 
+// Graceful handler for malformed JSON bodies so clients get a helpful 400
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    console.error('Malformed JSON body:', err.message)
+    return res.status(400).json({ error: 'Invalid JSON payload' })
+  }
+  // delegate to default error handler
+  next(err)
+})
+
 const PORT = process.env.PORT || 5000
 
 async function start() {
