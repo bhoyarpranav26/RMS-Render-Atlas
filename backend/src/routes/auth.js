@@ -109,14 +109,23 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body
     if (!email || !password) return res.status(400).json({ error: 'Missing fields' })
+    
+    console.log('Login attempt for email:', email)
 
     const user = await User.findOne({ email })
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' })
+    if (!user) {
+      console.log('Login failed — user not found for', email)
+      return res.status(400).json({ error: 'Invalid credentials' })
+    }
 
     const match = await bcrypt.compare(password, user.passwordHash)
-    if (!match) return res.status(400).json({ error: 'Invalid credentials' })
+    if (!match) {
+      console.log('Login failed — invalid password for', email)
+      return res.status(400).json({ error: 'Invalid credentials' })
+    }
 
     const token = signToken(user)
+    console.log('Login successful for', email)
     return res.json({ ok: true, token, user: { id: user._id, name: user.name, email: user.email, role: user.role } })
   } catch (err) {
     console.error(err)
